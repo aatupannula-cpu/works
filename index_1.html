@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Työajanseuranta</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2430;--mu:#667085;--bd:#e2e6ec;--ac:#2563eb;--act:#fff;--ok:#15803d;--bad:#b91c1c;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b222b;--tx:#e8ecf2;--mu:#98a2b3;--bd:#2d3643;--ac:#5b8def;--act:#0b1220;--ok:#4ade80;--bad:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b222b;--tx:#e8ecf2;--mu:#98a2b3;--bd:#2d3643;--ac:#5b8def;--act:#0b1220;--ok:#4ade80;--bad:#f87171;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:14px 14px 96px}
+h1{font-size:20px;margin:0}h2{font-size:16px;margin:0 0 10px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+#who{color:var(--mu);font-size:13px}
+nav{display:flex;justify-content:center;gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:10;margin:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--bd)}
+nav button{flex:1;max-width:240px;min-height:54px;font-size:14px;line-height:1.25}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+button,input,select{font:inherit;font-size:16px;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;min-height:46px}
+button{cursor:pointer}
+button.p,nav button.on{background:var(--ac);color:var(--act);border-color:var(--ac);font-weight:600}
+button.stop{background:var(--bad);color:#fff;border-color:var(--bad);font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.row>label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px;flex:1;min-width:110px}
+.row>label input,.row>label select{width:100%}
+.clock{font-size:52px;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;margin:6px 0 12px}
+.stats{display:flex;gap:10px;flex-wrap:wrap}.stats div{flex:1;min-width:120px;background:var(--bg);border-radius:8px;padding:8px 10px}
+.stats b{display:block;font-size:18px}.stats span{font-size:12px;color:var(--mu)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mu);font-weight:600;font-size:12px}
+td.n{text-align:right}
+.x{padding:6px 14px;min-height:38px;color:var(--bad)}
+.msg{color:var(--mu);font-size:13px;margin:6px 0 0}.err{color:var(--bad)}
+.hide,.row>.hide{display:none}
+html{-webkit-text-size-adjust:100%}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+input,select{min-width:0;max-width:100%}
+#t-clock:not(.hide){display:flex;flex-direction:column}
+#t-clock>.card:nth-child(2){order:4}
+#cBtn,#dBtn{min-height:60px;font-size:18px}
+.ls thead{display:none}.ls,.ls tbody{display:block}
+.ls tr{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--bd)}
+.ls td{border:0;padding:0;white-space:normal}.ls td:empty{display:none}
+.ls td:first-child,.ls td.n{font-weight:600}.ls td:last-child{margin-left:auto;display:block}
+@media (max-width:600px){.row>button{flex:1 1 100%;min-height:52px;font-size:17px}.row>label{min-width:calc(50% - 8px)}h1{font-size:18px}}
+</style>
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Työajat">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+</head>
+<body>
+<main>
+<header><h1>⏱️ Työajanseuranta</h1><span><span id="who"></span> <button id="out" class="hide" style="min-height:36px;padding:4px 10px;font-size:13px">Ulos</button></span></header>
+<div id="net" class="msg hide" style="text-align:center;margin:0 0 10px"></div>
+<div id="login" class="card hide"><h2>Kirjaudu sisään</h2><div class="row"><label>Sähköposti<input id="lMail" type="email" autocomplete="username"></label><label>Salasana<input id="lPass" type="password" autocomplete="current-password"></label><button id="lBtn" class="p">Kirjaudu</button></div><p class="msg" id="lInfo"></p></div>
+<div id="fatal" class="card hide"></div>
+<div id="app" class="hide">
+<nav><button data-t="clock" class="on">⏱️<br>Kirjaus</button><button data-t="mine">📋<br>Omat tunnit</button><button data-t="rep" id="repTab" class="hide">📊<br>Raportti</button></nav>
+
+<section id="t-clock">
+ <div class="card">
+  <h2>Leimaus</h2>
+  <div class="clock" id="clock">0:00:00</div>
+  <div class="row">
+   <label>Projekti<select id="cProj"></select></label>
+   <label>Muistiinpano<input id="cNote" placeholder="Valinnainen"></label>
+   <button id="cBtn" class="p">Aloita työ</button>
+  </div>
+  <p class="msg" id="cInfo"></p>
+ </div>
+ <div class="card">
+  <h2>Kirjaa tunnit käsin</h2>
+  <div class="row">
+   <label>Päivä<input type="date" id="mDate"></label>
+   <label>Alku<input type="time" id="mS" value="08:00"></label>
+   <label>Loppu<input type="time" id="mE" value="16:00"></label>
+   <label>Tauko (min)<input type="number" id="mB" min="0" value="0"></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+   <label>Projekti<select id="mProj"></select></label>
+   <label>Muistiinpano<input id="mNote" placeholder="Valinnainen"></label>
+   <button id="mBtn" class="p">Tallenna</button>
+  </div>
+  <p class="msg" id="mInfo"></p>
+ </div>
+ <div class="card">
+  <h2>Työajo (GPS)</h2>
+  <div class="clock"><span id="dKm">0,0</span> km</div>
+  <div class="row">
+   <label>Projekti<select id="dProj"></select></label>
+   <label>Muistiinpano<input id="dNote" placeholder="Esim. asiakaskäynti"></label>
+   <button id="dBtn" class="p">Aloita työajo</button>
+  </div>
+  <p class="msg" id="dInfo">GPS mittaa kilometrit, kun työajo on päällä. Pidä sivu auki ja näyttö päällä.</p>
+ </div>
+ <div class="card">
+  <h2>Kilometrit ja kulut</h2>
+  <div class="row">
+   <label>Päivä<input type="date" id="eDate"></label>
+   <label>Laji<select id="eCat"><option>Kilometrit</option><option>Matkalippu</option><option>Parkkimaksu</option><option>Majoitus</option><option>Ateria</option><option>Tarvikkeet</option><option>Muu kulu</option></select></label>
+   <label>Km<input id="eKm" inputmode="decimal" placeholder="0"></label>
+   <label>Summa (€)<input id="eAmt" inputmode="decimal" placeholder="0,00"></label>
+   <label id="eFileL">Tosite (kuva, pakollinen)<input type="file" id="eFile" accept="image/*,application/pdf"></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+   <label>Projekti<select id="eProj"></select></label>
+   <label>Muistiinpano<input id="eNote" placeholder="Valinnainen"></label>
+   <button id="eBtn" class="p">Tallenna</button>
+  </div>
+  <p class="msg" id="eInfo"></p>
+ </div>
+</section>
+
+<section id="t-mine" class="hide">
+ <div class="card"><div class="stats"><div><b id="sW">0</b><span>Tämä viikko</span></div><div><b id="sM">0</b><span>Tämä kuukausi</span></div><div><b id="sK">0</b><span>Km tässä kuussa</span></div><div><b id="sE">0</b><span>Kulut tässä kuussa</span></div></div></div>
+ <div class="card"><h2>Viimeisimmät kirjaukset</h2><div class="scroll"><table class="ls"><thead><tr><th>Päivä</th><th>Aika</th><th>Projekti</th><th>Muistiinpano</th><th class="n">Tunnit</th><th></th></tr></thead><tbody id="logB"></tbody></table></div><p class="msg" id="logE"></p></div>
+ <div class="card"><h2>Kilometrit ja kulut</h2><div class="scroll"><table class="ls"><thead><tr><th>Päivä</th><th>Laji</th><th>Projekti</th><th>Muistiinpano</th><th class="n">Km</th><th class="n">€</th><th></th></tr></thead><tbody id="eB"></tbody></table></div><p class="msg" id="eE"></p></div>
+</section>
+
+<section id="t-rep" class="hide">
+ <div class="card">
+  <h2>Projektit</h2>
+  <div class="row"><label>Uusi projekti<input id="pName" placeholder="Esim. Asiakas A"></label><button id="pBtn" class="p">Lisää</button></div>
+  <div id="pList" class="msg"></div>
+ </div>
+ <div class="card">
+  <h2>Kuukausiraportti</h2>
+  <div class="row"><label>Kuukausi<input type="month" id="rMonth"></label><button id="rBtn" class="p">Hae</button><button id="rCsv">Lataa tunnit CSV</button><button id="rCsv2">Lataa kulut CSV</button></div>
+  <p class="msg" id="rInfo"></p>
+  <div class="scroll"><table id="rTbl"></table></div>
+  <h2 style="margin-top:16px">Kilometrit ja kulut</h2>
+  <div class="scroll"><table id="eTbl"></table></div>
+  <h2 style="margin-top:16px">Kulut ja tositteet</h2>
+  <div class="scroll"><table id="eDet"></table></div>
+ </div>
+</section>
+</div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const dStr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const tStr=ms=>{const d=new Date(ms);return pad(d.getHours())+':'+pad(d.getMinutes())};
+const hrs=m=>(m/60).toFixed(2).replace('.',',');
+const fin=s=>{const [y,m,d]=s.split('-');return +d+'.'+ +m+'.'+y};
+let db,user,uid,isAdmin=false,projects=[],log=[],active=null,repRows=[],tick=null,exp=[],expRows=[],drive=null,watchId=null,dKm=0,lastPt=null,lastSave=0,wl=null;
+
+function fatal(t){const f=$('#fatal');f.textContent=t;f.classList.remove('hide')}
+function say(id,t,bad){const e=$(id);e.textContent=t;e.classList.toggle('err',!!bad)}
+function cell(tr,t,cls){const td=document.createElement('td');td.textContent=t;if(cls)td.className=cls;tr.appendChild(td);return td}
+
+async function init(){
+  $('#mDate').value=dStr(new Date());$('#eDate').value=dStr(new Date());
+  $('#rMonth').value=dStr(new Date()).slice(0,7);
+  try{db=await claude.use('db');user=await claude.use('user')}catch(e){}
+  if(!db||!user){fatal('Kirjautuminen epäonnistui. Lataa sivu uudelleen.');return}
+  uid=await user.id();
+  if(!uid){fatal('Käyttäjätunnistusta ei saatu. Kirjaudu sisään ja lataa sivu uudelleen.');return}
+  isAdmin=await user.canEdit();
+  try{$('#who').textContent=(await user.me()).name||''}catch(e){}
+  $('#app').classList.remove('hide');
+  if(isAdmin)$('#repTab').classList.remove('hide');
+  db.doc('staff/'+uid).set({seen:Date.now()}).catch(()=>{});
+  db.collection('projects').onSnapshot(s=>{projects=s.docs.map(d=>({id:d.id,name:d.data().name||''})).sort((a,b)=>a.name.localeCompare(b.name,'fi'));renderProj()},()=>{});
+  const base=db.doc('entries/'+uid);
+  base.collection('log').onSnapshot(s=>{log=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.start-a.start);renderLog()},()=>say('#logE','Tietojen lataus epäonnistui.',1));
+  base.collection('active').doc('current').onSnapshot(d=>{active=d.exists?d.data():null;renderTimer()},()=>{});
+  base.collection('expenses').onSnapshot(s=>{exp=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.date>a.date?1:b.date<a.date?-1:0);renderExp()},()=>say('#eE','Tietojen lataus epäonnistui.',1));
+  db.doc('entries/'+uid+'/active/drive').onSnapshot(d=>{drive=d.exists?d.data():null;if(drive&&watchId===null){dKm=drive.km||0;startWatch()}if(!drive)stopWatch();renderDrive()},()=>{});
+}
+
+function renderProj(){
+  for(const id of ['#cProj','#mProj','#eProj','#dProj']){
+    const el=$(id),v=el.value;el.textContent='';
+    const o=document.createElement('option');o.value='Yleinen';o.textContent='Yleinen';el.appendChild(o);
+    projects.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;el.appendChild(o)});
+    if(v)el.value=v;
+  }
+  const l=$('#pList');l.textContent='';
+  if(!projects.length)l.textContent='Ei vielä projekteja. Työntekijät voivat käyttää valintaa "Yleinen".';
+  projects.forEach(p=>{const s=document.createElement('span');s.textContent=p.name+' ';const b=document.createElement('button');b.textContent='×';b.className='x';b.onclick=()=>db.doc('projects/'+p.id).delete().catch(()=>{});s.appendChild(b);s.style.marginRight='10px';l.appendChild(s)});
+}
+
+function renderTimer(){
+  clearInterval(tick);
+  const b=$('#cBtn');
+  if(active){
+    b.textContent='Lopeta työ';b.className='stop';$('#cProj').value=active.project||'Yleinen';$('#cProj').disabled=true;
+    say('#cInfo','Aloitettu klo '+tStr(active.start));
+    const u=()=>{const s=Math.max(0,Math.floor((Date.now()-active.start)/1000));$('#clock').textContent=Math.floor(s/3600)+':'+pad(Math.floor(s/60)%60)+':'+pad(s%60)};
+    u();tick=setInterval(u,1000);
+  }else{
+    b.textContent='Aloita työ';b.className='p';$('#cProj').disabled=false;$('#clock').textContent='0:00:00';say('#cInfo','');
+  }
+}
+
+$('#cBtn').onclick=async()=>{
+  const cur=db.doc('entries/'+uid+'/active/current');
+  try{
+    if(!active){
+      await cur.set({start:Date.now(),project:$('#cProj').value,note:$('#cNote').value.trim()});
+    }else{
+      const end=Date.now(),mins=Math.max(1,Math.round((end-active.start)/60000));
+      await db.doc('entries/'+uid).collection('log').add({date:dStr(new Date(active.start)),start:active.start,end,minutes:mins,project:active.project||'Yleinen',note:active.note||'',source:'leimaus'});
+      await cur.delete();$('#cNote').value='';
+    }
+  }catch(e){say('#cInfo','Tallennus epäonnistui: '+(e.message||e.code),1)}
+};
+
+$('#mBtn').onclick=async()=>{
+  const d=$('#mDate').value,s=new Date(d+'T'+$('#mS').value).getTime(),e=new Date(d+'T'+$('#mE').value).getTime(),br=+$('#mB').value||0;
+  if(!d||isNaN(s)||isNaN(e)||e<=s)return say('#mInfo','Tarkista päivä ja kellonajat.',1);
+  const mins=Math.round((e-s)/60000)-br;
+  if(mins<=0)return say('#mInfo','Tauko on pidempi kuin työaika.',1);
+  try{
+    await db.doc('entries/'+uid).collection('log').add({date:d,start:s,end:e,minutes:mins,project:$('#mProj').value,note:$('#mNote').value.trim(),source:'käsin'});
+    $('#mNote').value='';say('#mInfo','Tallennettu ('+hrs(mins)+' h).');
+  }catch(x){say('#mInfo','Tallennus epäonnistui: '+(x.message||x.code),1)}
+};
+
+function renderLog(){
+  const B=$('#logB');B.textContent='';
+  const now=new Date(),wd=(now.getDay()+6)%7,mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-wd);
+  const wk=dStr(mon),mo=dStr(now).slice(0,7);let w=0,m=0;
+  log.forEach(e=>{if(e.date>=wk)w+=e.minutes;if(e.date.startsWith(mo))m+=e.minutes});
+  $('#sW').textContent=hrs(w)+' h';$('#sM').textContent=hrs(m)+' h';
+  log.slice(0,60).forEach(e=>{
+    const tr=document.createElement('tr');
+    cell(tr,fin(e.date));cell(tr,tStr(e.start)+'–'+tStr(e.end));cell(tr,e.project);cell(tr,e.note||'');cell(tr,hrs(e.minutes),'n');
+    const td=cell(tr,'');const b=document.createElement('button');b.textContent='×';b.className='x';b.title='Poista';
+    b.onclick=()=>{if(confirm('Poistetaanko kirjaus?'))db.doc('entries/'+uid+'/log/'+e.id).delete().catch(()=>{})};
+    td.appendChild(b);B.appendChild(tr);
+  });
+  say('#logE',log.length?'':'Ei vielä kirjauksia.');
+}
+
+$('#pBtn').onclick=async()=>{
+  const n=$('#pName').value.trim();if(!n)return;
+  try{await db.collection('projects').add({name:n});$('#pName').value=''}catch(e){alert('Projektin lisäys epäonnistui.')}
+};
+
+$('#rBtn').onclick=async()=>{
+  const mo=$('#rMonth').value;if(!mo)return;
+  say('#rInfo','Haetaan…');const T=$('#rTbl');T.textContent='';repRows=[];
+  try{
+    const staff=(await db.collection('staff').get()).docs.map(d=>d.id);
+    const ps=await user.profiles(staff);
+    const per={},projSet=new Set(),ex={},det=[];expRows=[];
+    for(const id of staff){
+      const s=await db.doc('entries/'+id).collection('log').get();
+      const name=(ps[id]&&ps[id].name)||'Tuntematon';
+      try{const x=await db.doc('entries/'+id).collection('expenses').get();x.docs.forEach(d=>{const e=d.data();if(!e.date||!e.date.startsWith(mo))return;(ex[id]=ex[id]||{name,km:0,eur:0});ex[id].km+=e.km||0;ex[id].eur+=e.amount||0;det.push({name,date:e.date,cat:e.category||'',project:e.project||'',amt:e.amount||0,rc:e.receipt||''});expRows.push([name,e.date,e.category||'',e.km?String(e.km).replace('.',','):'',e.amount?eur(e.amount):'',e.project||'',e.note||''])})}catch(_){}
+      s.docs.forEach(d=>{const e=d.data();if(!e.date||!e.date.startsWith(mo))return;
+        projSet.add(e.project);(per[id]=per[id]||{name,t:0,p:{}});per[id].t+=e.minutes;per[id].p[e.project]=(per[id].p[e.project]||0)+e.minutes;
+        repRows.push([name,e.date,tStr(e.start),tStr(e.end),e.project,e.note||'',hrs(e.minutes)]);
+      });
+    }
+    const pl=[...projSet].sort();
+    const hr=document.createElement('tr');['Työntekijä',...pl,'Yhteensä'].forEach(t=>{const th=document.createElement('th');th.textContent=t;hr.appendChild(th)});
+    const th=document.createElement('thead');th.appendChild(hr);T.appendChild(th);
+    const tb=document.createElement('tbody');
+    Object.values(per).sort((a,b)=>a.name.localeCompare(b.name,'fi')).forEach(r=>{
+      const tr=document.createElement('tr');cell(tr,r.name);pl.forEach(p=>cell(tr,r.p[p]?hrs(r.p[p]):'–','n'));cell(tr,hrs(r.t)+' h','n').style.fontWeight='700';tb.appendChild(tr);
+    });
+    T.appendChild(tb);renderDet(det);renderExpTbl(ex);
+    say('#rInfo',repRows.length?repRows.length+' kirjausta, tunnit desimaaleina.':'Ei kirjauksia tälle kuukaudelle.');
+  }catch(e){say('#rInfo','Raportin haku epäonnistui: '+(e.message||e.code),1)}
+};
+
+$('#rCsv').onclick=async()=>{
+  if(!repRows.length)return say('#rInfo','Hae ensin raportti.',1);
+  const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const csv='\uFEFF'+[['Työntekijä','Päivä','Alku','Loppu','Projekti','Muistiinpano','Tunnit'],...repRows].map(r=>r.map(q).join(';')).join('\r\n');
+  try{const d=await claude.use('downloads');if(!d)throw 0;await d.save({filename:'tyoajat-'+$('#rMonth').value+'.csv',data:csv})}
+  catch(e){say('#rInfo','CSV-lataus ei ole käytettävissä tässä näkymässä.',1)}
+};
+
+const eur=n=>(+n||0).toFixed(2).replace('.',',');
+const num=s=>parseFloat(String(s).replace(',','.'));
+const hav=(a,b,c,d)=>{const r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,h=Math.sin(x/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)**2;return 12742000*Math.asin(Math.sqrt(h))};
+
+$('#eBtn').onclick=async()=>{
+  const d=$('#eDate').value,km=num($('#eKm').value)||0,amt=num($('#eAmt').value)||0;
+  const isKm=$('#eCat').value==='Kilometrit',f=$('#eFile').files[0];
+  if(!d||(isKm&&km<=0)||(!isKm&&amt<=0))return say('#eInfo',isKm?'Anna kilometrit.':'Anna kulun summa.',1);
+  if(!isKm&&!f)return say('#eInfo','Tosite on pakollinen: ota tai valitse kuva tositteesta.',1);
+  let rid=null;const bt=$('#eBtn');bt.disabled=true;
+  try{
+    if(!isKm){const as=await claude.use('assets');if(!as)throw new Error('kuvien lataus ei ole käytettävissä tässä näkymässä');say('#eInfo','Ladataan tositetta…');rid=(await as.upload(await shrink(f))).id}
+    await db.doc('entries/'+uid).collection('expenses').add({date:d,category:$('#eCat').value,receipt:rid,km:Math.round(km*10)/10,amount:Math.round(amt*100)/100,project:$('#eProj').value,note:$('#eNote').value.trim(),source:'käsin'});
+    ['#eKm','#eAmt','#eNote','#eFile'].forEach(s=>$(s).value='');bt.disabled=false;say('#eInfo','Tallennettu'+(rid?' tositteen kanssa.':'.'));
+  }catch(x){bt.disabled=false;say('#eInfo','Tallennus epäonnistui: '+(x.message||x.code),1)}
+};
+
+async function shrink(f){
+  try{const bm=await createImageBitmap(f),s=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement('canvas');c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(b=>r(b||f),'image/jpeg',0.82))}catch(_){return f}
+}
+function syncCat(){
+  const k=$('#eCat').value==='Kilometrit';
+  $('#eKm').parentElement.classList.toggle('hide',!k);$('#eAmt').parentElement.classList.toggle('hide',k);$('#eFileL').classList.toggle('hide',k);
+  if(k){$('#eAmt').value='';$('#eFile').value=''}else $('#eKm').value='';
+}
+$('#eCat').onchange=syncCat;syncCat();
+
+function renderExp(){
+  const B=$('#eB');B.textContent='';const mo=dStr(new Date()).slice(0,7);let k=0,e=0;
+  exp.forEach(x=>{if((x.date||'').startsWith(mo)){k+=x.km||0;e+=x.amount||0}});
+  $('#sK').textContent=k.toFixed(1).replace('.',',')+' km';$('#sE').textContent=eur(e)+' €';
+  exp.slice(0,40).forEach(x=>{
+    const tr=document.createElement('tr');
+    cell(tr,fin(x.date));cell(tr,x.category||'');cell(tr,x.project||'');cell(tr,x.note||'');cell(tr,x.km?String(x.km).replace('.',','):'','n');cell(tr,x.amount?eur(x.amount):'','n');
+    const td=cell(tr,'');const b=document.createElement('button');b.textContent='×';b.className='x';b.title='Poista';
+    b.onclick=async()=>{if(!confirm('Poistetaanko kulu ja sen tosite?'))return;try{await db.doc('entries/'+uid+'/expenses/'+x.id).delete();if(x.receipt){const as=await claude.use('assets');if(as)await as.delete(x.receipt)}}catch(_){}};
+    if(x.receipt){const a=document.createElement('a');a.href='#';a.onclick=ev=>{ev.preventDefault();openReceipt(x.receipt)};a.textContent='📎 ';a.title='Näytä tosite';td.appendChild(a)}
+    td.appendChild(b);B.appendChild(tr);
+  });
+  say('#eE',exp.length?'':'Ei vielä kuluja.');
+}
+
+function renderDet(det){
+  const T=$('#eDet');T.textContent='';
+  const rows=det.filter(r=>r.cat!=='Kilometrit').sort((a,b)=>a.date<b.date?-1:1);if(!rows.length)return;
+  const hr=document.createElement('tr');['Työntekijä','Päivä','Laji','Projekti','€','Tosite'].forEach(t=>{const th=document.createElement('th');th.textContent=t;hr.appendChild(th)});
+  const h=document.createElement('thead');h.appendChild(hr);T.appendChild(h);const tb=document.createElement('tbody');
+  rows.forEach(r=>{const tr=document.createElement('tr');cell(tr,r.name);cell(tr,fin(r.date));cell(tr,r.cat);cell(tr,r.project);cell(tr,eur(r.amt),'n');
+    const td=cell(tr,r.rc?'':'puuttuu');if(r.rc){const a=document.createElement('a');a.href='#';a.onclick=ev=>{ev.preventDefault();openReceipt(r.rc)};a.textContent='📎 Näytä';td.appendChild(a)}tb.appendChild(tr)});
+  T.appendChild(tb);
+}
+function renderExpTbl(ex){
+  const T=$('#eTbl');T.textContent='';
+  const hr=document.createElement('tr');['Työntekijä','Km','Kulut €'].forEach(t=>{const th=document.createElement('th');th.textContent=t;hr.appendChild(th)});
+  const h=document.createElement('thead');h.appendChild(hr);T.appendChild(h);
+  const tb=document.createElement('tbody');
+  Object.values(ex).sort((a,b)=>a.name.localeCompare(b.name,'fi')).forEach(r=>{const tr=document.createElement('tr');cell(tr,r.name);cell(tr,r.km.toFixed(1).replace('.',','),'n');cell(tr,eur(r.eur),'n');tb.appendChild(tr)});
+  T.appendChild(tb);
+}
+
+$('#rCsv2').onclick=async()=>{
+  if(!expRows.length)return say('#rInfo','Ei kuluja tälle kuukaudelle. Hae raportti ensin.',1);
+  const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const csv='\uFEFF'+[['Työntekijä','Päivä','Laji','Km','Summa €','Projekti','Muistiinpano'],...expRows].map(r=>r.map(q).join(';')).join('\r\n');
+  try{const d=await claude.use('downloads');if(!d)throw 0;await d.save({filename:'kulut-'+$('#rMonth').value+'.csv',data:csv})}
+  catch(e){say('#rInfo','CSV-lataus ei ole käytettävissä tässä näkymässä.',1)}
+};
+
+function drawDrive(){$('#dKm').textContent=dKm.toFixed(1).replace('.',',')}
+function renderDrive(){
+  const on=!!drive,b=$('#dBtn');
+  b.textContent=on?'Lopeta työajo':'Aloita työajo';b.className=on?'stop':'p';$('#dProj').disabled=on;
+  if(on){$('#dProj').value=drive.project||'Yleinen';if(watchId!==null)say('#dInfo','Työajo käynnissä, alkoi klo '+tStr(drive.start)+'. Pidä sivu auki ja näyttö päällä.')}
+  else{dKm=0;say('#dInfo','GPS mittaa kilometrit, kun työajo on päällä. Pidä sivu auki ja näyttö päällä.')}
+  drawDrive();
+}
+function startWatch(){
+  if(watchId!==null)return;
+  if(!navigator.geolocation){say('#dInfo','GPS ei ole käytettävissä tässä näkymässä. Kirjaa kilometrit käsin.',1);return}
+  lastPt=null;
+  watchId=navigator.geolocation.watchPosition(p=>{
+    const c=p.coords;if(c.accuracy>50)return;
+    if(lastPt){
+      const m=hav(lastPt.lat,lastPt.lon,c.latitude,c.longitude);
+      if(m>=25){if(m<5000){dKm+=m/1000;drawDrive();saveDrive()}lastPt={lat:c.latitude,lon:c.longitude}}
+    }else lastPt={lat:c.latitude,lon:c.longitude};
+  },er=>{say('#dInfo',er.code===1?'Sijaintilupa evätty tai estetty tässä näkymässä. Kirjaa kilometrit käsin.':'Sijaintia ei saatu: '+er.message,1)},{enableHighAccuracy:true,maximumAge:5000,timeout:30000});
+  try{navigator.wakeLock.request('screen').then(l=>wl=l).catch(()=>{})}catch(_){}
+  if(drive)say('#dInfo','Työajo käynnissä, alkoi klo '+tStr(drive.start)+'. Pidä sivu auki ja näyttö päällä.');
+}
+function stopWatch(){
+  if(watchId!==null){try{navigator.geolocation.clearWatch(watchId)}catch(_){}watchId=null}
+  if(wl){try{wl.release()}catch(_){}wl=null}
+}
+async function saveDrive(){
+  if(!drive||Date.now()-lastSave<20000)return;lastSave=Date.now();
+  try{await db.doc('entries/'+uid+'/active/drive').update({km:Math.round(dKm*100)/100})}catch(e){}
+}
+$('#dBtn').onclick=async()=>{
+  const ref=db.doc('entries/'+uid+'/active/drive');
+  try{
+    if(!drive){
+      dKm=0;await ref.set({start:Date.now(),km:0,project:$('#dProj').value,note:$('#dNote').value.trim()});
+    }else{
+      const d=drive;stopWatch();
+      const ans=prompt('Ajettu matka kilometreinä (voit korjata):',dKm.toFixed(1).replace('.',','));
+      const km=ans===null?NaN:num(ans);
+      if(!(km>=0)){startWatch();return}
+      if(km>0)await db.doc('entries/'+uid).collection('expenses').add({date:dStr(new Date(d.start)),category:'Kilometrit',km:Math.round(km*10)/10,amount:0,project:d.project||'Yleinen',note:d.note||'',source:'gps',start:d.start,end:Date.now()});
+      await ref.delete();$('#dNote').value='';
+    }
+  }catch(e){say('#dInfo','Toiminto epäonnistui: '+(e.message||e.code),1)}
+};
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  ['clock','mine','rep'].forEach(t=>$('#t-'+t).classList.toggle('hide',t!==b.dataset.t));
+});
+</script>
+<script>
+// ====== ASETUKSET: korvaa omilla Supabase-tiedoillasi (Supabase > Project Settings > API) ======
+const SUPABASE_URL='https://PROJEKTISI.supabase.co';
+const SUPABASE_KEY='JULKINEN_ANON_TAI_PUBLISHABLE_AVAIN';
+// ================================================================================================
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const me={id:null,name:'',admin:false};
+const LS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');localStorage.setItem(k,JSON.stringify(v))}catch(_){return null}};
+let cache=LS('tp_cache')||{};      // laitteelle tallennetut omat tiedot: polku -> data
+let outbox=LS('tp_out')||[];       // synkronointia odottavat muutokset
+let flushing=false;
+const save=()=>{LS('tp_cache',cache);LS('tp_out',outbox)};
+const listeners=new Set();
+const bump=()=>listeners.forEach(f=>f());
+const parentOf=p=>p.split('/').slice(0,-1).join('/');
+const cacheable=p=>p.startsWith('entries/'+me.id+'/')||p.startsWith('projects/')||p==='staff/'+me.id;
+const snap=(path,row)=>({id:path.split('/').pop(),exists:!!row,data:()=>row?row.data:undefined,metadata:{}});
+// true = verkko-/istuntovirhe, jolloin muutos jää jonoon; false = pysyvä virhe (esim. oikeudet), muutos hylätään
+const keepOp=e=>!e||!/^\d|^PGRST/.test(e.code||'')||e.code==='PGRST301';
+
+function netUi(){
+  const e=$('#net');if(!e)return;const off=!navigator.onLine,n=outbox.length;
+  e.classList.toggle('hide',!off&&!n);
+  e.textContent=(off?'Ei verkkoa. Tiedot tallentuvat laitteelle. ':'')+(n?n+' kirjausta odottaa synkronointia.':'');
+}
+async function flush(){
+  if(flushing||!outbox.length||!me.id)return;
+  flushing=true;
+  try{
+    while(outbox.length){
+      const o=outbox[0];let error;
+      if(o.op==='set')({error}=await sb.from('docs').upsert({path:o.path,parent:parentOf(o.path),data:o.data}));
+      else({error}=await sb.from('docs').delete().eq('path',o.path));
+      if(error&&keepOp(error))break;
+      outbox.shift();save();
+    }
+  }catch(_){}
+  flushing=false;save();netUi();bump();
+}
+function queue(op){
+  outbox=outbox.filter(o=>o.path!==op.path);outbox.push(op);
+  if(op.op==='set')cache[op.path]=op.data;else delete cache[op.path];
+  save();netUi();bump();flush();
+}
+function watch(get,next,err){
+  let last=null,alive=true;
+  const run=async()=>{
+    if(!alive)return;
+    try{const s=await get();const sig=JSON.stringify(s.docs?s.docs.map(d=>[d.id,d.data()]):[s.exists,s.data()]);if(sig!==last){last=sig;next(s)}}
+    catch(e){if(err&&last===null){last='err';err(e)}}
+  };
+  listeners.add(run);run();
+  return()=>{alive=false;listeners.delete(run)};
+}
+function mkdoc(path){
+  const ref={
+    path,
+    async get(){
+      try{const {data,error}=await sb.from('docs').select('data').eq('path',path).maybeSingle();if(error)throw error;
+        if(cacheable(path)){if(data)cache[path]=data.data;else delete cache[path];save()}
+        let d=data?data.data:undefined;
+        outbox.forEach(o=>{if(o.path===path)d=o.op==='set'?o.data:undefined});
+        return snap(path,d===undefined?null:{data:d});
+      }catch(e){if(!cacheable(path))throw e;return snap(path,cache[path]===undefined?null:{data:cache[path]})}
+    },
+    async set(d){queue({op:'set',path,data:JSON.parse(JSON.stringify(d))})},
+    async update(d){const s=await ref.get();await ref.set({...(s.data()||{}),...d})},
+    async delete(){queue({op:'del',path})},
+    collection(n){return mkcol(path+'/'+n)},
+    onSnapshot(next,err){return watch(()=>ref.get(),next,err)}
+  };
+  return ref;
+}
+function mkcol(path){
+  const col={
+    doc(id){return mkdoc(path+'/'+(id||crypto.randomUUID()))},
+    async add(d){const r=mkdoc(path+'/'+crypto.randomUUID());await r.set(d);return r},
+    async get(){
+      const m={};
+      try{
+        const {data,error}=await sb.from('docs').select('path,data').eq('parent',path);if(error)throw error;
+        data.forEach(r=>m[r.path]=r.data);
+        if(cacheable(path+'/x')){Object.keys(cache).forEach(p=>{if(parentOf(p)===path)delete cache[p]});Object.assign(cache,m);save()}
+      }catch(e){
+        if(!cacheable(path+'/x'))throw e;
+        Object.keys(cache).forEach(p=>{if(parentOf(p)===path)m[p]=cache[p]});
+      }
+      outbox.forEach(o=>{if(parentOf(o.path)===path){if(o.op==='set')m[o.path]=o.data;else delete m[o.path]}});
+      const docs=Object.keys(m).map(p=>snap(p,{data:m[p]}));
+      return {docs,size:docs.length,empty:!docs.length,metadata:{}};
+    },
+    onSnapshot(next,err){return watch(()=>col.get(),next,err)}
+  };
+  return col;
+}
+async function openReceipt(id){
+  const w=window.open('','_blank');
+  try{const {data,error}=await sb.storage.from('receipts').createSignedUrl(id,300);if(error)throw error;w.location=data.signedUrl}
+  catch(e){if(w)w.close();alert('Tositteen avaus epäonnistui. Tarkista verkkoyhteys.')}
+}
+// Yhteensopivuuskerros: sivun koodi kutsuu claude.use(...), tässä ne ohjataan Supabaseen ja laitteen muistiin.
+window.claude={use:async n=>({
+  db:{doc:mkdoc,collection:mkcol},
+  user:{
+    isOwner:async()=>me.admin,canEdit:async()=>me.admin,can:async()=>null,id:async()=>me.id,
+    me:async()=>({id:me.id,name:me.name}),
+    profiles:async ids=>{const o={};try{const {data}=await sb.from('profiles').select('id,name').in('id',ids);(data||[]).forEach(r=>o[r.id]={id:r.id,name:r.name||''})}catch(_){}ids.forEach(i=>{o[i]=o[i]||{id:i,name:''}});return o}
+  },
+  assets:{
+    upload:async b=>{
+      if(!navigator.onLine)throw new Error('ei verkkoyhteyttä: tositteen voi ladata vasta kun olet verkossa');
+      const id=me.id+'/'+crypto.randomUUID();const {error}=await sb.storage.from('receipts').upload(id,b,{contentType:b.type||'image/jpeg'});
+      if(error)throw error;return {id,url:'',sizeBytes:b.size,contentType:b.type};
+    },
+    delete:async id=>{try{await sb.storage.from('receipts').remove([id])}catch(_){}}
+  },
+  downloads:{save:async({filename,data})=>{const u=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}}
+}[n]||null)};
+
+try{sb.channel('docs').on('postgres_changes',{event:'*',schema:'public',table:'docs'},bump).subscribe()}catch(_){}
+setInterval(()=>{if(!document.hidden&&navigator.onLine){flush();bump()}},30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();bump()}});
+window.addEventListener('online',()=>{netUi();flush();bump()});
+window.addEventListener('offline',netUi);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+async function boot(){
+  let u=null;try{const {data}=await sb.auth.getSession();u=data.session&&data.session.user}catch(_){}
+  const cm=LS('tp_me');
+  if(!u&&cm&&!navigator.onLine){me.id=cm.id;me.name=cm.name;me.admin=cm.admin}
+  else if(!u){$('#login').classList.remove('hide');return}
+  else{
+    me.id=u.id;let r=null;
+    try{r=(await sb.from('profiles').select('name,role').eq('id',u.id).maybeSingle()).data}catch(_){}
+    if(r){me.name=r.name||u.email;me.admin=r.role==='admin'}
+    else if(cm&&cm.id===u.id){me.name=cm.name;me.admin=cm.admin}
+    else me.name=u.email;
+    LS('tp_me',{id:me.id,name:me.name,admin:me.admin});
+  }
+  $('#out').classList.remove('hide');netUi();flush();init();
+}
+$('#lBtn').onclick=async()=>{
+  const {error}=await sb.auth.signInWithPassword({email:$('#lMail').value.trim(),password:$('#lPass').value});
+  if(error)return say('#lInfo','Kirjautuminen epäonnistui. Tarkista sähköposti, salasana ja verkkoyhteys.',1);
+  location.reload();
+};
+$('#out').onclick=async()=>{
+  await flush();
+  if(outbox.length&&!confirm('Kaikkia kirjauksia ei ole vielä synkronoitu. Uloskirjautuminen poistaa ne tältä laitteelta. Jatketaanko?'))return;
+  try{await sb.auth.signOut()}catch(_){}
+  ['tp_cache','tp_out','tp_me'].forEach(k=>localStorage.removeItem(k));location.reload();
+};
+boot();
+</script>
+</body>
+</html>
