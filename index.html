@@ -545,7 +545,7 @@ async function boot(){
 }
 $('#lBtn').onclick=async()=>{
   const {error}=await sb.auth.signInWithPassword({email:$('#lMail').value.trim(),password:$('#lPass').value});
-  if(error)return say('#lInfo','Kirjautuminen epäonnistui. Tarkista sähköposti, salasana ja verkkoyhteys.',1);
+  if(error)return say('#lInfo','Kirjautuminen epäonnistui: '+(error.message||error),1);
   location.reload();
 };
 $('#out').onclick=async()=>{
