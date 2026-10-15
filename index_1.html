@@ -404,8 +404,8 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 </script>
 <script>
 // ====== ASETUKSET: korvaa omilla Supabase-tiedoillasi (Supabase > Project Settings > API) ======
-const SUPABASE_URL='https://PROJEKTISI.supabase.co';
-const SUPABASE_KEY='JULKINEN_ANON_TAI_PUBLISHABLE_AVAIN';
+const SUPABASE_URL='https://blvyrsqrwbnhldaeuhiq.supabase.co/rest/v1/';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsdnlyc3Fyd2JuaGxkYWV1aGlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTc3MzQsImV4cCI6MjEwNzYzMzczNH0.Cu9bHp7PUgAD5N-vcsR3pBmtr91lpF2vE7R9t7wajsA';
 // ================================================================================================
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const me={id:null,name:'',admin:false};
